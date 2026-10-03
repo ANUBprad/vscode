@@ -460,6 +460,7 @@ export class AgentSideEffects extends Disposable {
 				channel: envelope.channel,
 				session: isAhpChatChannel(envelope.channel) ? parseRequiredSessionUriFromChatUri(envelope.channel) : envelope.channel,
 				action: envelope.action,
+				...(envelope.origin !== undefined ? { origin: envelope.origin } : {}),
 				...(envelope.rejectionReason !== undefined ? { rejectionReason: envelope.rejectionReason } : {}),
 			});
 		}));
@@ -670,6 +671,10 @@ export class AgentSideEffects extends Disposable {
 	 * once the `subagent_started` arrives.
 	 */
 	private _handleAgentSignal(agent: IAgent, signal: AgentSignal): void {
+		if (signal.kind === 'canvas') {
+			this._stateManager.setCanvasState(signal.chat.toString(), signal.resource.toString(), signal.state);
+			return;
+		}
 		if (signal.kind === 'subagent_started') {
 			this._handleSubagentStarted(signal.chat.toString(), signal.toolCallId, signal.agentName, signal.agentDisplayName, signal.agentDescription, signal.taskPrompt, signal.parentToolCallId, signal.taskModelSource);
 			this._drainPendingSubagentSignals(signal.chat.toString(), signal.toolCallId);
@@ -1770,7 +1775,7 @@ export class AgentSideEffects extends Disposable {
 				if (!chatChannel) {
 					throw new Error(`${action.type} must be handled on an AHP chat channel: ${channel}`);
 				}
-				break; // Queue policy lives in QueueDrainContribution via onDidApplyClientAction.
+				break; // Queue policy lives in QueueDrainContribution.
 			}
 			case ActionType.ChatTruncated: {
 				if (!chatChannel) {
